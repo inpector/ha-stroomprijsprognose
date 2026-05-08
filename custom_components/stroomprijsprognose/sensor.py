@@ -134,6 +134,7 @@ class StroomprijsprognoseSensor(CoordinatorEntity, SensorEntity):
         super().__init__(coordinator)
         self.entity_description = description
         self._attr_unique_id = f"{entry_id}_{sensor_key}"
+        self._attr_has_entity_name = True
         self._attr_device_info = {
             "identifiers": {(DOMAIN, entry_id)},
             "name": f"Stroomprijsprognose {coordinator.plz}",
@@ -143,11 +144,6 @@ class StroomprijsprognoseSensor(CoordinatorEntity, SensorEntity):
         }
         self._sensor_key = sensor_key
         self._attr_translation_key = description.translation_key
-
-    @property
-    def translation_key(self) -> str | None:
-        """Return the translation key."""
-        return self.entity_description.translation_key
 
     @property
     def native_value(self) -> StateType:
@@ -186,17 +182,17 @@ class StroomprijsprognoseSensor(CoordinatorEntity, SensorEntity):
             case "lowest_price_time":
                 if forecast:
                     min_slot = min(forecast, key=lambda s: s["retail_total_ct_kwh_all"])
-                    return min_slot["timestamp"].isoformat()
+                    return min_slot["timestamp"]
                 return None
             case "highest_price_time":
                 if forecast:
                     max_slot = max(forecast, key=lambda s: s["retail_total_ct_kwh_all"])
-                    return max_slot["timestamp"].isoformat()
+                    return max_slot["timestamp"]
                 return None
             case "lowest_next_8h_price_time":
                 lowest_next = data.get("lowest_next_8h", [])
                 if lowest_next:
-                    return lowest_next[0]["timestamp"].isoformat()
+                    return lowest_next[0]["timestamp"]
                 return None
             case "forecast_slots":
                 return sum(1 for s in forecast if s["price_source"] == "forecast")

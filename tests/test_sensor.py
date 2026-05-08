@@ -120,15 +120,15 @@ class TestMinMaxAvgSensors:
 class TestTimestampSensors:
     def test_lowest_price_time(self) -> None:
         sensor = make_sensor("lowest_price_time")
-        assert sensor.native_value == NOW.isoformat()
+        assert sensor.native_value == NOW
 
     def test_highest_price_time(self) -> None:
         sensor = make_sensor("highest_price_time")
-        assert sensor.native_value == (NOW + timedelta(hours=71)).isoformat()
+        assert sensor.native_value == NOW + timedelta(hours=71)
 
     def test_lowest_next_8h_time(self) -> None:
         sensor = make_sensor("lowest_next_8h_price_time")
-        assert sensor.native_value == NOW.isoformat()
+        assert sensor.native_value == NOW
 
 
 class TestPriceSourceSensor:
