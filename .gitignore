@@ -28,5 +28,8 @@ config/
 dist/
 *.zip
 
+# Tests
+.pytest_cache/
+
 # Claude
 .claude/

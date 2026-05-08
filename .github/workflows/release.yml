@@ -1,0 +1,81 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag (e.g. v1.0.0)"
+        required: true
+        type: string
+      release_notes:
+        description: "Release notes (markdown)"
+        required: false
+        type: string
+
+jobs:
+  release:
+    name: Release ${{ inputs.version }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version format
+        run: |
+          if [[ ! "${{ inputs.version }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: version must match vX.Y.Z (e.g. v1.0.0)"
+            exit 1
+          fi
+
+      - name: Check tag does not exist
+        run: |
+          if git rev-parse "${{ inputs.version }}" >/dev/null 2>&1; then
+            echo "ERROR: tag ${{ inputs.version }} already exists"
+            exit 1
+          fi
+
+      - name: Build release asset
+        run: |
+          VERSION="${{ inputs.version }}"
+          SEMVER="${VERSION#v}"
+          DOMAIN="stroomprijsprognose"
+
+          cp -r "custom_components/$DOMAIN" "/tmp/$DOMAIN"
+
+          # Inject version into manifest.json for the release asset
+          # (main branch stays version-less for HACS compatibility)
+          python3 -c "
+          import json
+          path = '/tmp/$DOMAIN/manifest.json'
+          with open(path) as f:
+              m = json.load(f)
+          m['version'] = '$SEMVER'
+          with open(path, 'w') as f:
+              json.dump(m, f, indent=2)
+          print(f'Set version to $SEMVER in release asset')
+          "
+
+          # Create zip
+          cd /tmp
+          zip -r "/tmp/$DOMAIN-$VERSION.zip" "$DOMAIN"
+          echo "ASSET=/tmp/$DOMAIN-$VERSION.zip" >> "$GITHUB_ENV"
+
+      - name: Create tag and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ inputs.version }}" -m "Release ${{ inputs.version }}"
+          git push origin "${{ inputs.version }}"
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          name: Release ${{ inputs.version }}
+          body: ${{ inputs.release_notes }}
+          files: /tmp/stroomprijsprognose-${{ inputs.version }}.zip
+          generate_release_notes: ${{ inputs.release_notes == '' }}
