@@ -16,6 +16,8 @@ jobs:
   release:
     name: Release ${{ inputs.version }}
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     permissions:
       contents: write
 
@@ -47,7 +49,6 @@ jobs:
           cp -r "custom_components/$DOMAIN" "/tmp/$DOMAIN"
 
           # Inject version into manifest.json for the release asset
-          # (main branch stays version-less for HACS compatibility)
           python3 -c "
           import json
           path = '/tmp/$DOMAIN/manifest.json'
