@@ -1,0 +1,13 @@
+{
+  "domain": "stroomprijsprognose",
+  "name": "Stroomprijsprognose Electricity Prices",
+  "codeowners": ["@inpector"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/inpector/ha-stroomprijsprognose",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/inpector/ha-stroomprijsprognose/issues",
+  "requirements": [],
+  "version": "1.0.0"
+}

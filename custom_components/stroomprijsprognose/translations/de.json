@@ -1,0 +1,90 @@
+{
+  "config": {
+    "flow_title": "Stroomprijsprognose {plz} ({country})",
+    "step": {
+      "user": {
+        "title": "Stroomprijsprognose konfigurieren",
+        "description": "Gib deine Postleitzahl und dein Land ein, um Strompreisprognosen inklusive Netzentgelten, Abgaben und Mehrwertsteuer zu erhalten.",
+        "data": {
+          "plz": "Postleitzahl (PLZ)",
+          "country": "Land"
+        },
+        "data_description": {
+          "plz": "Deine Postleitzahl bestimmt den lokalen Netzbetreiber und die Netzentgelte.",
+          "country": "Unterstützt: DE, NL, BE, AT, CH, LU"
+        }
+      }
+    },
+    "error": {
+      "unknown": "Ein unerwarteter Fehler ist aufgetreten. Prüfen Sie die Logs für Details."
+    },
+    "abort": {
+      "already_configured": "Diese PLZ-Land-Kombination ist bereits konfiguriert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Stroomprijsprognose Optionen",
+        "description": "Passe die Prognoseeinstellungen und Preisberechnung an.",
+        "data": {
+          "hours": "Prognosestunden",
+          "update_interval": "Aktualisierungsintervall (Minuten)",
+          "supplier_markup_ct_kwh": "Lieferantenzuschlag (ct/kWh) — API-Standard überschreiben",
+          "levies_and_taxes_ct_kwh": "Abgaben & Steuern exkl. MwSt. (ct/kWh) — überschreiben",
+          "vat_percent": "Mehrwertsteuer-Prozentsatz — überschreiben"
+        },
+        "data_description": {
+          "hours": "Anzahl der abzurufenden Prognosestunden (1-96). Standard: 72.",
+          "update_interval": "Aktualisierungsintervall in Minuten (5-60). Standard: 15.",
+          "supplier_markup_ct_kwh": "Leer lassen, um den API-Standard für dein Netzgebiet zu verwenden.",
+          "levies_and_taxes_ct_kwh": "Leer lassen, um den API-Standard für dein Netzgebiet zu verwenden.",
+          "vat_percent": "Leer lassen für API-Standard. DE: 19%."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "current_price": {
+        "name": "Aktueller Stundenpreis"
+      },
+      "current_forecast_price": {
+        "name": "Aktueller Prognosepreis"
+      },
+      "current_day_ahead_price": {
+        "name": "Aktueller Day-Ahead-Preis"
+      },
+      "lowest_price": {
+        "name": "Niedrigster Preis"
+      },
+      "highest_price": {
+        "name": "Höchster Preis"
+      },
+      "average_price": {
+        "name": "Durchschnittspreis"
+      },
+      "lowest_price_time": {
+        "name": "Zeit des niedrigsten Preises"
+      },
+      "highest_price_time": {
+        "name": "Zeit des höchsten Preises"
+      },
+      "lowest_next_8h_price_time": {
+        "name": "Niedrigster Preis nächste 8h"
+      },
+      "price_source": {
+        "name": "Preisquelle"
+      },
+      "forecast_slots": {
+        "name": "Prognose-Slots"
+      }
+    }
+  },
+  "services": {
+    "force_refresh": {
+      "name": "Aktualisierung erzwingen",
+      "description": "Strompreisprognose sofort neu abrufen."
+    }
+  }
+}

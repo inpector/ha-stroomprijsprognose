@@ -1,0 +1,90 @@
+{
+  "config": {
+    "flow_title": "Stroomprijsprognose {plz} ({country})",
+    "step": {
+      "user": {
+        "title": "Stroomprijsprognose configureren",
+        "description": "Voer je postcode en land in om stroomprijsvoorspellingen te ontvangen inclusief nettarieven, heffingen en btw.",
+        "data": {
+          "plz": "Postcode",
+          "country": "Land"
+        },
+        "data_description": {
+          "plz": "Je postcode bepaalt de lokale netbeheerder en bijbehorende tarieven.",
+          "country": "Ondersteund: DE, NL, BE, AT, CH, LU"
+        }
+      }
+    },
+    "error": {
+      "unknown": "Er is een onverwachte fout opgetreden. Controleer de logs voor details."
+    },
+    "abort": {
+      "already_configured": "Deze postcode-land combinatie is al geconfigureerd."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Stroomprijsprognose Opties",
+        "description": "Pas de voorspellingsinstellingen en prijsberekening aan.",
+        "data": {
+          "hours": "Voorspellingsuren",
+          "update_interval": "Update-interval (minuten)",
+          "supplier_markup_ct_kwh": "Leveranciersopslag (ct/kWh) - API-standaard overschrijven",
+          "levies_and_taxes_ct_kwh": "Heffingen & belastingen excl. btw (ct/kWh) - overschrijven",
+          "vat_percent": "Btw-percentage - overschrijven"
+        },
+        "data_description": {
+          "hours": "Aantal op te halen voorspellingsuren (1-96). Standaard: 72.",
+          "update_interval": "Update-interval in minuten (5-60). Standaard: 15.",
+          "supplier_markup_ct_kwh": "Laat leeg om de API-standaard voor jouw netgebied te gebruiken.",
+          "levies_and_taxes_ct_kwh": "Laat leeg om de API-standaard voor jouw netgebied te gebruiken.",
+          "vat_percent": "Laat leeg voor API-standaard. NL: 21%."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "current_price": {
+        "name": "Huidige uurprijs"
+      },
+      "current_forecast_price": {
+        "name": "Huidige voorspelde uurprijs"
+      },
+      "current_day_ahead_price": {
+        "name": "Huidige day-ahead uurprijs"
+      },
+      "lowest_price": {
+        "name": "Laagste prijs"
+      },
+      "highest_price": {
+        "name": "Hoogste prijs"
+      },
+      "average_price": {
+        "name": "Gemiddelde prijs"
+      },
+      "lowest_price_time": {
+        "name": "Tijdstip laagste prijs"
+      },
+      "highest_price_time": {
+        "name": "Tijdstip hoogste prijs"
+      },
+      "lowest_next_8h_price_time": {
+        "name": "Laagste prijs komende 8 uur"
+      },
+      "price_source": {
+        "name": "Prijsbron"
+      },
+      "forecast_slots": {
+        "name": "Voorspellings-slots"
+      }
+    }
+  },
+  "services": {
+    "force_refresh": {
+      "name": "Verversing forceren",
+      "description": "Stroomprijsvoorspelling direct opnieuw ophalen."
+    }
+  }
+}

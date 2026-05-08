@@ -1,0 +1,90 @@
+{
+  "config": {
+    "flow_title": "Stroomprijsprognose {plz} ({country})",
+    "step": {
+      "user": {
+        "title": "Configure Stroomprijsprognose",
+        "description": "Enter your postal code and country to get electricity price forecasts including grid fees, levies, and VAT.",
+        "data": {
+          "plz": "Postal Code (PLZ)",
+          "country": "Country"
+        },
+        "data_description": {
+          "plz": "Your postal code determines the local grid operator and fees.",
+          "country": "Supported: DE, NL, BE, AT, CH, LU"
+        }
+      }
+    },
+    "error": {
+      "unknown": "An unexpected error occurred. Check the logs for details."
+    },
+    "abort": {
+      "already_configured": "This postal code and country combination is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Stroomprijsprognose Options",
+        "description": "Customize forecast settings and price calculation overrides.",
+        "data": {
+          "hours": "Forecast Hours",
+          "update_interval": "Update Interval (minutes)",
+          "supplier_markup_ct_kwh": "Supplier Markup (ct/kWh) — override API default",
+          "levies_and_taxes_ct_kwh": "Levies & Taxes excl. VAT (ct/kWh) — override",
+          "vat_percent": "VAT Percent — override"
+        },
+        "data_description": {
+          "hours": "Number of forecast hours to fetch (1-96). Default: 72.",
+          "update_interval": "How often to refresh data (5-60 minutes). Default: 15.",
+          "supplier_markup_ct_kwh": "Leave empty to use the API's default for your grid area.",
+          "levies_and_taxes_ct_kwh": "Leave empty to use the API's default for your grid area.",
+          "vat_percent": "Leave empty to use the API's default. DE default: 19%."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "current_price": {
+        "name": "Current hour price"
+      },
+      "current_forecast_price": {
+        "name": "Current hour forecast price"
+      },
+      "current_day_ahead_price": {
+        "name": "Current hour day-ahead price"
+      },
+      "lowest_price": {
+        "name": "Lowest price"
+      },
+      "highest_price": {
+        "name": "Highest price"
+      },
+      "average_price": {
+        "name": "Average price"
+      },
+      "lowest_price_time": {
+        "name": "Lowest price time"
+      },
+      "highest_price_time": {
+        "name": "Highest price time"
+      },
+      "lowest_next_8h_price_time": {
+        "name": "Lowest next 8h price time"
+      },
+      "price_source": {
+        "name": "Price source"
+      },
+      "forecast_slots": {
+        "name": "Forecast model slots"
+      }
+    }
+  },
+  "services": {
+    "force_refresh": {
+      "name": "Force refresh",
+      "description": "Immediately re-fetch the electricity price forecast."
+    }
+  }
+}

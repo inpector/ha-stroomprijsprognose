@@ -1,0 +1,90 @@
+{
+  "config": {
+    "flow_title": "Stroomprijsprognose {plz} ({country})",
+    "step": {
+      "user": {
+        "title": "Configurer Stroomprijsprognose",
+        "description": "Saisissez votre code postal et votre pays pour obtenir des previsions de prix d'electricite incluant les frais de reseau, les taxes et la TVA.",
+        "data": {
+          "plz": "Code postal",
+          "country": "Pays"
+        },
+        "data_description": {
+          "plz": "Votre code postal determine le gestionnaire de reseau local et les frais.",
+          "country": "Pays supportes : DE, NL, BE, AT, CH, LU"
+        }
+      }
+    },
+    "error": {
+      "unknown": "Une erreur inattendue s'est produite. Consultez les logs pour plus de details."
+    },
+    "abort": {
+      "already_configured": "Cette combinaison code postal / pays est deja configuree."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options Stroomprijsprognose",
+        "description": "Personnalisez les parametres de prevision et le calcul des prix.",
+        "data": {
+          "hours": "Heures de prevision",
+          "update_interval": "Intervalle de mise a jour (minutes)",
+          "supplier_markup_ct_kwh": "Marge fournisseur (ct/kWh) - remplacer la valeur par defaut",
+          "levies_and_taxes_ct_kwh": "Prelevements et taxes hors TVA (ct/kWh) - remplacer",
+          "vat_percent": "Pourcentage de TVA - remplacer"
+        },
+        "data_description": {
+          "hours": "Nombre d'heures de prevision a recuperer (1-96). Defaut : 72.",
+          "update_interval": "Frequence de rafraichissement (5-60 minutes). Defaut : 15.",
+          "supplier_markup_ct_kwh": "Laissez vide pour utiliser la valeur par defaut de l'API pour votre zone.",
+          "levies_and_taxes_ct_kwh": "Laissez vide pour utiliser la valeur par defaut de l'API pour votre zone.",
+          "vat_percent": "Laissez vide pour utiliser la valeur par defaut de l'API."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "current_price": {
+        "name": "Prix de l'heure actuelle"
+      },
+      "current_forecast_price": {
+        "name": "Prix previsionnel de l'heure actuelle"
+      },
+      "current_day_ahead_price": {
+        "name": "Prix day-ahead de l'heure actuelle"
+      },
+      "lowest_price": {
+        "name": "Prix le plus bas"
+      },
+      "highest_price": {
+        "name": "Prix le plus eleve"
+      },
+      "average_price": {
+        "name": "Prix moyen"
+      },
+      "lowest_price_time": {
+        "name": "Heure du prix le plus bas"
+      },
+      "highest_price_time": {
+        "name": "Heure du prix le plus eleve"
+      },
+      "lowest_next_8h_price_time": {
+        "name": "Prix le plus bas dans les 8 prochaines heures"
+      },
+      "price_source": {
+        "name": "Source du prix"
+      },
+      "forecast_slots": {
+        "name": "Creneaux de prevision"
+      }
+    }
+  },
+  "services": {
+    "force_refresh": {
+      "name": "Forcer la mise a jour",
+      "description": "Recharge immediatement les previsions de prix d'electricite."
+    }
+  }
+}

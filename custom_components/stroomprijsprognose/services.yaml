@@ -1,0 +1,11 @@
+force_refresh:
+  name: Force refresh
+  description: Immediately fetch latest electricity price forecast from the API.
+  fields:
+    entry_id:
+      name: Integration entry
+      description: The config entry ID to refresh. Leave empty to refresh all entries.
+      example: "abc123def456"
+      required: false
+      selector:
+        text:

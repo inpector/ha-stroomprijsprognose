@@ -1,0 +1,32 @@
+# Home Assistant custom component
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.log
+*.DS_Store
+
+# Python virtualenv
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Home Assistant core testing
+tst_*/
+testing_config/
+config/
+
+# Secrets / env
+.env
+*.secret
+
+# Build artifacts
+dist/
+*.zip
+
+# Claude
+.claude/
