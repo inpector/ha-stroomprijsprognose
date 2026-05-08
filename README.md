@@ -115,6 +115,41 @@ This integration uses the free public API at [stroomprijsprognose.nl](https://st
 - No API key required
 - Data updates roughly every 15 minutes
 
+## Development
+
+### Running Tests
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-test.txt
+python -m pytest tests/ -v
+```
+
+47 tests covering coordinator data processing, sensor value extraction, config flow schema validation, and unit handling. Tests use a mock `homeassistant` package — no HA runtime needed.
+
+### CI/CD
+
+Two GitHub Actions workflows:
+
+| Workflow | Trigger | What it does |
+|----------|---------|--------------|
+| `test.yml` | push/PR on `main` | pytest on Python 3.12 + 3.13 |
+| `release.yml` | manual (`workflow_dispatch`) | Creates versioned release |
+
+### Creating a Release
+
+1. Go to **Actions → Create Release → Run workflow**
+2. Enter version: `v1.0.0` (must match `vX.Y.Z`)
+3. Optionally add release notes (markdown)
+4. Click **Run workflow**
+
+The workflow:
+- Validates version format and checks tag doesn't exist
+- Builds a `.zip` release asset with the version injected into `manifest.json`
+- Creates an annotated Git tag
+- Publishes a GitHub release with the zip attached
+
 ## Vibe-Code Transparency
 
 | Aspect | Detail |
@@ -122,9 +157,9 @@ This integration uses the free public API at [stroomprijsprognose.nl](https://st
 | **AI Tool** | Claude Code CLI (Anthropic) |
 | **Model** | DeepSeek V4 Pro |
 | **Human review** | Single pass, no line-by-line audit |
-| **Tests** | None generated |
+| **Tests** | 47 pytest tests (AI-generated, not human-verified) |
 | **Prompt method** | Caveman mode (ultra-compressed), plan-first |
-| **Files** | 100% AI generated in one batch |
+| **Files** | 100% AI generated in iterative batches |
 | **Disclaimer** | Not production-validated. Use at your own risk. |
 
 ## License

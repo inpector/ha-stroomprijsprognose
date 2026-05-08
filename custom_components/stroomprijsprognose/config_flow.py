@@ -8,14 +8,12 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.data_entry_flow import FlowResult
+
 from .const import (
     CONF_COUNTRY,
     CONF_HOURS,
-    CONF_LEVIES_AND_TAXES,
     CONF_PLZ,
-    CONF_SUPPLIER_MARKUP,
     CONF_UPDATE_INTERVAL,
-    CONF_VAT_PERCENT,
     COUNTRIES,
     DEFAULT_COUNTRY,
     DEFAULT_HOURS,
@@ -52,13 +50,8 @@ class StroomprijsprognoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_COUNTRY: user_input[CONF_COUNTRY],
                 },
                 options={
-                    CONF_HOURS: user_input.get(CONF_HOURS, DEFAULT_HOURS),
-                    CONF_UPDATE_INTERVAL: user_input.get(
-                        CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
-                    ),
-                    CONF_SUPPLIER_MARKUP: user_input.get(CONF_SUPPLIER_MARKUP),
-                    CONF_LEVIES_AND_TAXES: user_input.get(CONF_LEVIES_AND_TAXES),
-                    CONF_VAT_PERCENT: user_input.get(CONF_VAT_PERCENT),
+                    CONF_HOURS: DEFAULT_HOURS,
+                    CONF_UPDATE_INTERVAL: DEFAULT_UPDATE_INTERVAL,
                 },
             )
 
@@ -86,6 +79,7 @@ class StroomprijsprognoseOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
+        super().__init__()
         self.config_entry = config_entry
 
     async def async_step_init(
@@ -97,29 +91,17 @@ class StroomprijsprognoseOptionsFlow(config_entries.OptionsFlow):
 
         options = self.config_entry.options
         data_schema = vol.Schema({
-            vol.Optional(
+            vol.Required(
                 CONF_HOURS,
                 default=options.get(CONF_HOURS, DEFAULT_HOURS),
             ): vol.All(vol.Coerce(int), vol.Range(min=MIN_HOURS, max=MAX_HOURS)),
-            vol.Optional(
+            vol.Required(
                 CONF_UPDATE_INTERVAL,
                 default=options.get(CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL),
             ): vol.All(
                 vol.Coerce(int),
                 vol.Range(min=MIN_UPDATE_INTERVAL, max=MAX_UPDATE_INTERVAL),
             ),
-            vol.Optional(
-                CONF_SUPPLIER_MARKUP,
-                default=options.get(CONF_SUPPLIER_MARKUP),
-            ): vol.Any(None, vol.Coerce(float)),
-            vol.Optional(
-                CONF_LEVIES_AND_TAXES,
-                default=options.get(CONF_LEVIES_AND_TAXES),
-            ): vol.Any(None, vol.Coerce(float)),
-            vol.Optional(
-                CONF_VAT_PERCENT,
-                default=options.get(CONF_VAT_PERCENT),
-            ): vol.Any(None, vol.All(vol.Coerce(int), vol.Range(min=0, max=30))),
         })
 
         return self.async_show_form(step_id="init", data_schema=data_schema)

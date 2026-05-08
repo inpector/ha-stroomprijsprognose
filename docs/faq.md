@@ -88,7 +88,17 @@ Depends. Bug reports and PRs are welcome.
 3. AI designed the architecture (standard HA coordinator pattern)
 4. AI generated all 10 files simultaneously in one batch
 5. AI reviewed and fixed 2 bugs (`forecast_slots` unit, `vol.Optional` `description` params)
-6. Total time: under 10 minutes end-to-end
+6. HACS discovered — 3 more fixes applied (`integration_type`, `@callback`, `services.yaml`)
+7. Tests + CI/CD added (47 tests, mock HA package)
+8. Total time: under 30 minutes end-to-end across 3 sessions
+
+### Are there tests?
+
+Yes. 47 pytest tests covering coordinator data processing, sensor values, config flow schema, and unit handling. Run with `pip install -r requirements-test.txt && pytest tests/ -v`.
+
+### How do I create a release?
+
+Use the GitHub Actions workflow: **Actions → Create Release → Run workflow**, enter version tag like `v1.0.0`. The workflow builds a zip with version in manifest.json, creates a git tag, and publishes a GitHub release.
 
 ### I found a bug. Now what?
 
