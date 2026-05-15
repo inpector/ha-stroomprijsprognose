@@ -60,12 +60,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     })
 
     async def handle_force_refresh(call: ServiceCall) -> None:
-        """Handle force_refresh service call."""
+        """Handle force_refresh service call.
+
+        Sets the force-refresh flag to bypass cache on next update,
+        then triggers an immediate refresh.
+        """
         entry_id = call.data.get("entry_id")
         if entry_id and entry_id in hass.data.get(DOMAIN, {}):
-            await hass.data[DOMAIN][entry_id].async_request_refresh()
+            coord = hass.data[DOMAIN][entry_id]
+            coord.request_force_refresh()
+            await coord.async_request_refresh()
         elif not entry_id:
             for coord in hass.data.get(DOMAIN, {}).values():
+                coord.request_force_refresh()
                 await coord.async_request_refresh()
 
     hass.services.async_register(

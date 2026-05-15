@@ -12,13 +12,19 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .const import API_TIMEOUT_SECONDS, BASE_URL, CONF_COUNTRY, CONF_HOURS, CONF_PLZ, DOMAIN
+from .const import API_CACHE_GRACE_SECONDS, API_TIMEOUT_SECONDS, BASE_URL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 
 class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
-    """Coordinator to fetch electricity price forecasts."""
+    """Coordinator to fetch electricity price forecasts.
+
+    Uses smart caching: full API calls happen at the configured update interval
+    or when an hour boundary is crossed. Between full fetches, derived values
+    (current_slot, lowest_next_8h) are recomputed from cached forecast data
+    without hitting the API.
+    """
 
     config_entry: Any  # ConfigEntry
 
@@ -40,10 +46,73 @@ class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
         self.plz = plz
         self.country = country.upper()
         self.hours = hours
+        self._update_interval_minutes = update_interval
         self._session = async_get_clientsession(hass)
 
+        # Cache state
+        self._last_api_fetch: datetime | None = None
+        self._last_fetch_hour: int | None = None
+        self._cached_processed: dict[str, Any] | None = None
+        self._force_refresh: bool = False
+
+    def request_force_refresh(self) -> None:
+        """Mark that the next update must bypass cache and fetch from API."""
+        self._force_refresh = True
+
+    def _needs_api_fetch(self, now: datetime) -> bool:
+        """Determine whether a full API fetch is needed.
+
+        Fetches from API when:
+        - No cached data exists (first run)
+        - Force refresh was requested
+        - An hour boundary was crossed and past the grace period
+        - The configured update_interval has elapsed since last fetch
+          (but not during grace period after hour boundary)
+
+        Within the grace period after an hour boundary, we recompute
+        derived values from cache instead of hitting the API.
+        """
+        if self._cached_processed is None:
+            return True
+        if self._force_refresh:
+            return True
+        if self._last_api_fetch is None:
+            return True
+
+        # Hour boundary crossed: check grace period
+        current_hour = now.hour
+        if self._last_fetch_hour is not None and current_hour != self._last_fetch_hour:
+            seconds_into_hour = now.minute * 60 + now.second
+            if seconds_into_hour < API_CACHE_GRACE_SECONDS:
+                # Within grace period — recompute from cache
+                return False
+            # Past grace period — fetch fresh data
+            return True
+
+        # No hour boundary: normal interval check
+        elapsed = (now - self._last_api_fetch).total_seconds()
+        if elapsed >= self._update_interval_minutes * 60:
+            return True
+
+        return False
+
     async def _async_update_data(self) -> dict[str, Any]:
-        """Fetch data from the API."""
+        """Fetch data from the API or recompute derived values from cache."""
+        now = dt_util.utcnow()
+
+        if self._needs_api_fetch(now):
+            raw = await self._fetch_api_data()
+            self._cached_processed = self._process_api_data(raw, now)
+            self._last_api_fetch = now
+            self._last_fetch_hour = now.hour
+            self._force_refresh = False
+            return self._cached_processed
+
+        # Recompute time-dependent derived values from cached forecast
+        return self._recompute_derived(self._cached_processed, now)
+
+    async def _fetch_api_data(self) -> dict[str, Any]:
+        """Fetch raw data from the API endpoint."""
         url = (
             f"{BASE_URL}/api/v1/hourly-forecast"
             f"?hours={self.hours}&country={self.country.lower()}&plz={self.plz}"
@@ -62,14 +131,13 @@ class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
         if "series" not in data or "summary" not in data:
             raise UpdateFailed("Invalid API response: missing series or summary")
 
-        return self._process_data(data)
+        return data
 
-    def _process_data(self, data: dict[str, Any]) -> dict[str, Any]:
+    def _process_api_data(self, data: dict[str, Any], now: datetime) -> dict[str, Any]:
         """Process raw API data into structured format."""
         series: list[dict[str, Any]] = data["series"]
         summary: dict[str, Any] = data["summary"]
         assumptions: dict[str, Any] = data.get("assumptions", {})
-        now = dt_util.utcnow()
 
         # Map API fields to internal keys; retail_total_ct_kwh_all is the
         # all-inclusive retail price (grid fees + taxes + markup) used for
@@ -94,8 +162,38 @@ class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
                 "price_source": slot["price_source"],
             })
 
-        # Find current hour slot
-        current_slot = self._find_current_slot(forecast, now)
+        return {
+            "generated_at": data.get("generated_at"),
+            "currency": data["currency"],
+            "unit": data["unit"],
+            "forecast": forecast,
+            "summary": summary,
+            "assumptions": assumptions,
+            **self._compute_derived(forecast, now),
+        }
+
+    def _recompute_derived(self, cached: dict[str, Any], now: datetime) -> dict[str, Any]:
+        """Recompute time-dependent derived values from cached forecast data.
+
+        Only current_slot and lowest_next_8h change between API calls
+        (they depend on the current time). Forecast list, summary,
+        assumptions, and rankings remain stable.
+        """
+        forecast = cached.get("forecast", [])
+        return {
+            "generated_at": cached.get("generated_at"),
+            "currency": cached.get("currency"),
+            "unit": cached.get("unit"),
+            "forecast": forecast,
+            "summary": cached.get("summary", {}),
+            "assumptions": cached.get("assumptions", {}),
+            **self._compute_derived(forecast, now),
+        }
+
+    @staticmethod
+    def _compute_derived(forecast: list[dict[str, Any]], now: datetime) -> dict[str, Any]:
+        """Compute all derived values from forecast and current time."""
+        current_slot = StroomprijsprognoseCoordinator._find_current_slot(forecast, now)
 
         # Top-5 cheapest and most expensive slots (descending for most-expensive)
         sorted_by_price = sorted(forecast, key=lambda s: s["retail_total_ct_kwh_all"])
@@ -108,13 +206,7 @@ class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
         lowest_next_8h = sorted(next_8h, key=lambda s: s["retail_total_ct_kwh_all"])[:3]
 
         return {
-            "generated_at": data.get("generated_at"),
-            "currency": data["currency"],
-            "unit": data["unit"],
-            "forecast": forecast,
             "current_slot": current_slot,
-            "summary": summary,
-            "assumptions": assumptions,
             "cheapest_slots": cheapest_5,
             "most_expensive_slots": most_expensive_5,
             "lowest_next_8h": lowest_next_8h,
