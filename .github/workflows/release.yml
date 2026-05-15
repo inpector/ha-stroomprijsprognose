@@ -65,10 +65,29 @@ jobs:
           zip -r "/tmp/$DOMAIN-$VERSION.zip" "$DOMAIN"
           echo "ASSET=/tmp/$DOMAIN-$VERSION.zip" >> "$GITHUB_ENV"
 
-      - name: Create tag and push
+      - name: Update manifest.json version in repo
         run: |
+          VERSION="${{ inputs.version }}"
+          SEMVER="${VERSION#v}"
+          python3 -c "
+          import json
+          path = 'custom_components/stroomprijsprognose/manifest.json'
+          with open(path) as f:
+              m = json.load(f)
+          m['version'] = '$SEMVER'
+          with open(path, 'w') as f:
+              json.dump(m, f, indent=2)
+              f.write('\n')
+          print(f'Updated manifest.json version to $SEMVER')
+          "
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add custom_components/stroomprijsprognose/manifest.json
+          git commit -m "chore: bump manifest.json to $SEMVER"
+          git push origin HEAD:${{ github.ref_name }}
+
+      - name: Create tag and push
+        run: |
           git tag -a "${{ inputs.version }}" -m "Release ${{ inputs.version }}"
           git push origin "${{ inputs.version }}"
 
