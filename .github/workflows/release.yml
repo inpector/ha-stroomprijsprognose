@@ -91,11 +91,46 @@ jobs:
           git tag -a "${{ inputs.version }}" -m "Release ${{ inputs.version }}"
           git push origin "${{ inputs.version }}"
 
+      - name: Generate changelog from commits
+        id: changelog
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="$PREV_TAG..HEAD"
+            echo "Generating changelog from $RANGE"
+          else
+            RANGE=""
+            echo "No previous tag found, using all commits"
+          fi
+
+          {
+            if [ -n "$RANGE" ]; then
+              git log "$RANGE" --pretty=format:"- %s"
+            else
+              git log --pretty=format:"- %s"
+            fi
+          } > /tmp/changelog.md
+
+          # Prepend manual release notes if provided
+          if [ -n "${{ inputs.release_notes }}" ]; then
+            {
+              echo "${{ inputs.release_notes }}"
+              echo ""
+              echo "## Commits"
+              cat /tmp/changelog.md
+            } > /tmp/body.md
+          else
+            cp /tmp/changelog.md /tmp/body.md
+          fi
+
+          echo "body_file=/tmp/body.md" >> "$GITHUB_OUTPUT"
+          echo "Changelog:"
+          cat /tmp/body.md
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.version }}
           name: Release ${{ inputs.version }}
-          body: ${{ inputs.release_notes }}
+          body_path: ${{ steps.changelog.outputs.body_file }}
           files: /tmp/stroomprijsprognose-${{ inputs.version }}.zip
-          generate_release_notes: ${{ inputs.release_notes == '' }}
