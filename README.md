@@ -19,8 +19,8 @@ Custom Home Assistant component for electricity price forecasts from [stroomprij
 - 11 sensors: current price, min/max/avg, best times, price source tracking
 - Rich attributes on main sensor for template automations
 - Configurable via Home Assistant UI (no YAML needed)
-- Force refresh service
-- Full German and English translations
+- Force refresh service (optionally per-instance via `entry_id`)
+- Translations: English, German, Dutch, French
 
 ## Supported Countries
 
@@ -56,19 +56,37 @@ cp -r custom_components/stroomprijsprognose custom_components/
 3. Enter your postal code and select your country
 4. Click Submit
 
-The integration fetches data every 15 minutes. Adjust interval in the integration options.
+The integration fetches data every 15 minutes (configurable 5–60 min). Adjust interval in the integration options.
+
+### Force Refresh
+
+Trigger an immediate data refresh via service call:
+
+```yaml
+# Refresh all instances
+service: stroomprijsprognose.force_refresh
+
+# Refresh a specific instance
+service: stroomprijsprognose.force_refresh
+data:
+  entry_id: "abc123..."
+```
 
 ## Sensors
 
-| Sensor | Unit | Description |
-|--------|------|-------------|
-| `sensor.stroomprijsprognose_current_price` | ct/kWh | Retail price for current hour |
-| `sensor.stroomprijsprognose_lowest_price` | ct/kWh | Cheapest retail price in forecast |
-| `sensor.stroomprijsprognose_highest_price` | ct/kWh | Most expensive retail price |
-| `sensor.stroomprijsprognose_average_price` | ct/kWh | Average retail price over forecast |
-| `sensor.stroomprijsprognose_lowest_price_time` | datetime | When the cheapest hour is |
-| `sensor.stroomprijsprognose_highest_price_time` | datetime | When the most expensive hour is |
-| `sensor.stroomprijsprognose_lowest_next_8h_price_time` | datetime | Cheapest slot in next 8 hours |
+| Sensor | Unit | Default | Description |
+|--------|------|---------|-------------|
+| `current_price` | ct/kWh | enabled | Retail price for current hour |
+| `lowest_price` | ct/kWh | enabled | Cheapest retail price in forecast |
+| `highest_price` | ct/kWh | enabled | Most expensive retail price |
+| `average_price` | ct/kWh | enabled | Average retail price over forecast |
+| `lowest_price_time` | datetime | enabled | When the cheapest hour is |
+| `highest_price_time` | datetime | enabled | When the most expensive hour is |
+| `lowest_next_8h_price_time` | datetime | enabled | Cheapest slot in next 8 hours |
+| `current_forecast_price` | ct/kWh | disabled | Model forecast price for current hour |
+| `current_day_ahead_price` | ct/kWh | disabled | Day-ahead auction price for current hour |
+| `price_source` | — | disabled | Price origin: `day_ahead` or `forecast` |
+| `forecast_slots` | h | disabled | Count of model-forecast slots in window |
 
 See [docs/sensors.md](docs/sensors.md) for full sensor reference.
 
@@ -111,6 +129,7 @@ Access forecast data in templates:
 This integration uses the free public API at [stroomprijsprognose.nl](https://stroomprijsprognose.nl).
 
 - Endpoint: `/api/v1/hourly-forecast`
+- Timeout: 30 seconds
 - Rate limiting: Unknown, be reasonable
 - No API key required
 - Data updates roughly every 15 minutes
