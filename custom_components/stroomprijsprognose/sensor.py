@@ -334,4 +334,13 @@ class StroomprijsprognoseSensor(CoordinatorEntity, SensorEntity):
             for s in data.get("lowest_next_8h", [])
         ]
 
+        # Graph-ready data: {x: timestamp, y: price} pairs for chart cards
+        attrs["data"] = [
+            {
+                "x": s["timestamp"].isoformat(),
+                "y": s["retail_total_ct_kwh_all"],
+            }
+            for s in forecast
+        ]
+
         return attrs

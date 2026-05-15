@@ -24,6 +24,7 @@ This is the main sensor. Its state is the total retail price for the current hou
 | Attribute | Type | Description |
 |-----------|------|-------------|
 | `hourly_prices` | list[dict] | All 72 forecast slots |
+| `data` | list[dict] | Graph-ready `{x, y}` pairs for chart cards |
 | `cheapest_slots` | list[dict] | Top 5 cheapest hours |
 | `most_expensive_slots` | list[dict] | Top 5 most expensive hours |
 | `lowest_next_8h` | list[dict] | Cheapest slots within next 8 hours |
@@ -42,6 +43,25 @@ Each slot dict in arrays:
   "retail_total_ct_kwh": 26.34,
   "price_source": "day_ahead"
 }
+```
+
+The `data` attribute uses a chart-friendly format:
+```json
+{
+  "x": "2026-05-08T12:00:00+00:00",
+  "y": 26.34
+}
+```
+
+Use it in apexcharts-card:
+```yaml
+type: custom:apexcharts-card
+series:
+  - entity: sensor.stroomprijsprognose_current_price
+    attribute: data
+    type: line
+    data_generator: |
+      return entity.attributes.data.map(d => [new Date(d.x).getTime(), d.y])
 ```
 
 ### `sensor.stroomprijsprognose_next_price`

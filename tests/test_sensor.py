@@ -240,6 +240,7 @@ class TestAttributes:
         assert "hourly_prices" in attrs
         assert "cheapest_slots" in attrs
         assert "price_level" in attrs
+        assert "data" in attrs
 
     def test_non_main_sensor_has_no_attributes(self) -> None:
         for key in SENSOR_DESCRIPTIONS:
@@ -258,6 +259,17 @@ class TestAttributes:
         sensor = make_sensor("current_price")
         attrs = sensor.extra_state_attributes
         assert isinstance(attrs["summary"], dict)
+
+    def test_data_attribute_is_graph_format(self) -> None:
+        sensor = make_sensor("current_price")
+        attrs = sensor.extra_state_attributes
+        data = attrs["data"]
+        assert len(data) == 72
+        for entry in data:
+            assert "x" in entry
+            assert "y" in entry
+            assert isinstance(entry["x"], str)
+            assert isinstance(entry["y"], float)
 
 
 class TestUnitOfMeasurement:
