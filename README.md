@@ -1,5 +1,8 @@
 # Home Assistant Stroomprijsprognose Integration
 
+> **Warning: Pre-Alpha**
+> This integration is in early development. Breaking changes, bugs, and data inaccuracies are likely. Do not rely on it for financial or critical decisions.
+
 Custom Home Assistant component for electricity price forecasts from [stroomprijsprognose.nl](https://stroomprijsprognose.nl). Provides hourly retail electricity prices (incl. grid fees, levies, VAT) based on your postal code.
 
 > **Unofficial Addon**
