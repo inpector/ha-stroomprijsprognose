@@ -13,13 +13,19 @@
           "plz": "Je postcode bepaalt de lokale netbeheerder en bijbehorende tarieven.",
           "country": "Ondersteund: DE, NL, BE, AT, CH, LU"
         }
+      },
+      "reconfigure": {
+        "title": "Stroomprijsprognose herconfigureren",
+        "description": "Wijzig je postcode of landinstelling."
       }
     },
     "error": {
+      "cannot_connect": "Kan geen verbinding maken met de API. Controleer je postcode en probeer opnieuw.",
       "unknown": "Er is een onverwachte fout opgetreden. Controleer de logs voor details."
     },
     "abort": {
-      "already_configured": "Deze postcode-land combinatie is al geconfigureerd."
+      "already_configured": "Deze postcode-land combinatie is al geconfigureerd.",
+      "reconfigure_successful": "Herconfiguratie was succesvol."
     }
   },
   "options": {
@@ -78,6 +84,18 @@
       },
       "forecast_slots": {
         "name": "Voorspellings-slots"
+      },
+      "next_price": {
+        "name": "Prijs volgende uur"
+      },
+      "price_level": {
+        "name": "Prijsniveau"
+      },
+      "price_percentage": {
+        "name": "Prijs als percentage van maximum"
+      },
+      "last_updated": {
+        "name": "Laatst bijgewerkt"
       }
     }
   },
@@ -85,6 +103,16 @@
     "force_refresh": {
       "name": "Verversing forceren",
       "description": "Stroomprijsvoorspelling direct opnieuw ophalen."
+    },
+    "get_prices": {
+      "name": "Prijzen ophalen",
+      "description": "Retourneert gecachte prijsvoorspellingsgegevens.",
+      "fields": {
+        "entry_id": {
+          "name": "Entry-ID",
+          "description": "Optioneel. Target een specifieke integratieinstantie."
+        }
+      }
     }
   }
 }

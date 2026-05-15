@@ -13,13 +13,23 @@
           "plz": "Your postal code determines the local grid operator and fees.",
           "country": "Supported: DE, NL, BE, AT, CH, LU"
         }
+      },
+      "reconfigure": {
+        "title": "Reconfigure Stroomprijsprognose",
+        "description": "Change your postal code or country setting.",
+        "data": {
+          "plz": "Postal Code (PLZ)",
+          "country": "Country"
+        }
       }
     },
     "error": {
+      "cannot_connect": "Failed to connect to the API. Check your postal code and try again.",
       "unknown": "An unexpected error occurred. Check the logs for details."
     },
     "abort": {
-      "already_configured": "This postal code and country combination is already configured."
+      "already_configured": "This postal code and country combination is already configured.",
+      "reconfigure_successful": "Reconfiguration was successful."
     }
   },
   "options": {
@@ -48,6 +58,9 @@
     "sensor": {
       "current_price": {
         "name": "Current hour price"
+      },
+      "next_price": {
+        "name": "Next hour price"
       },
       "current_forecast_price": {
         "name": "Current hour forecast price"
@@ -78,13 +91,32 @@
       },
       "forecast_slots": {
         "name": "Forecast model slots"
+      },
+      "price_level": {
+        "name": "Price level"
+      },
+      "price_percentage": {
+        "name": "Price percentage of max"
+      },
+      "last_updated": {
+        "name": "Last updated"
       }
     }
   },
   "services": {
     "force_refresh": {
       "name": "Force refresh",
-      "description": "Immediately re-fetch the electricity price forecast."
+      "description": "Immediately re-fetch the electricity price forecast, bypassing the cache."
+    },
+    "get_prices": {
+      "name": "Get prices",
+      "description": "Return cached price forecast data. Use in templates or automations to access raw price data.",
+      "fields": {
+        "entry_id": {
+          "name": "Entry ID",
+          "description": "Optional. Target a specific integration instance. Omit to use the first available."
+        }
+      }
     }
   }
 }

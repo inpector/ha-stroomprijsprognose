@@ -13,13 +13,19 @@
           "plz": "Deine Postleitzahl bestimmt den lokalen Netzbetreiber und die Netzentgelte.",
           "country": "Unterstützt: DE, NL, BE, AT, CH, LU"
         }
+      },
+      "reconfigure": {
+        "title": "Stroomprijsprognose neu konfigurieren",
+        "description": "Andere deine Postleitzahl oder Ländereinstellung."
       }
     },
     "error": {
-      "unknown": "Ein unerwarteter Fehler ist aufgetreten. Prüfen Sie die Logs für Details."
+      "unknown": "Ein unerwarteter Fehler ist aufgetreten. Prüfen Sie die Logs für Details.",
+      "cannot_connect": "Verbindung zur API fehlgeschlagen. Prüfe deine Postleitzahl und versuche es erneut."
     },
     "abort": {
-      "already_configured": "Diese PLZ-Land-Kombination ist bereits konfiguriert."
+      "already_configured": "Diese PLZ-Land-Kombination ist bereits konfiguriert.",
+      "reconfigure_successful": "Neukonfiguration war erfolgreich."
     }
   },
   "options": {
@@ -78,6 +84,18 @@
       },
       "forecast_slots": {
         "name": "Prognose-Slots"
+      },
+      "next_price": {
+        "name": "Nächster Stundenpreis"
+      },
+      "price_level": {
+        "name": "Preisniveau"
+      },
+      "price_percentage": {
+        "name": "Preis in Prozent des Maximums"
+      },
+      "last_updated": {
+        "name": "Zuletzt aktualisiert"
       }
     }
   },
@@ -85,6 +103,16 @@
     "force_refresh": {
       "name": "Aktualisierung erzwingen",
       "description": "Strompreisprognose sofort neu abrufen."
+    },
+    "get_prices": {
+      "name": "Preise abrufen",
+      "description": "Gibt zwischengespeicherte Preisprognosedaten zurück.",
+      "fields": {
+        "entry_id": {
+          "name": "Entry-ID",
+          "description": "Optional. Bestimmte Integrationsinstanz auswählen."
+        }
+      }
     }
   }
 }

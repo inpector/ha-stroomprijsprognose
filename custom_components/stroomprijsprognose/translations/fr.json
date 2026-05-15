@@ -13,13 +13,19 @@
           "plz": "Votre code postal determine le gestionnaire de reseau local et les frais.",
           "country": "Pays supportes : DE, NL, BE, AT, CH, LU"
         }
+      },
+      "reconfigure": {
+        "title": "Reconfigurer Stroomprijsprognose",
+        "description": "Modifiez votre code postal ou votre parametre de pays."
       }
     },
     "error": {
-      "unknown": "Une erreur inattendue s'est produite. Consultez les logs pour plus de details."
+      "unknown": "Une erreur inattendue s'est produite. Consultez les logs pour plus de details.",
+      "cannot_connect": "Impossible de se connecter a l'API. Verifiez votre code postal et reessayez."
     },
     "abort": {
-      "already_configured": "Cette combinaison code postal / pays est deja configuree."
+      "already_configured": "Cette combinaison code postal / pays est deja configuree.",
+      "reconfigure_successful": "Reconfiguration reussie."
     }
   },
   "options": {
@@ -78,6 +84,18 @@
       },
       "forecast_slots": {
         "name": "Creneaux de prevision"
+      },
+      "next_price": {
+        "name": "Prix de l'heure suivante"
+      },
+      "price_level": {
+        "name": "Niveau de prix"
+      },
+      "price_percentage": {
+        "name": "Prix en pourcentage du maximum"
+      },
+      "last_updated": {
+        "name": "Derniere mise a jour"
       }
     }
   },
@@ -85,6 +103,16 @@
     "force_refresh": {
       "name": "Forcer la mise a jour",
       "description": "Recharge immediatement les previsions de prix d'electricite."
+    },
+    "get_prices": {
+      "name": "Obtenir les prix",
+      "description": "Renvoie les donnees de prevision de prix en cache.",
+      "fields": {
+        "entry_id": {
+          "name": "ID d'entree",
+          "description": "Facultatif. Cibler une instance d'integration specifique."
+        }
+      }
     }
   }
 }
