@@ -31,6 +31,34 @@ def make_coordinator_mock(forecast_overrides: list[dict] | None = None) -> Magic
                 }
             )
 
+    # Compute derived values matching coordinator logic
+    current_slot = forecast[0] if forecast else None
+    next_slot = forecast[1] if len(forecast) > 1 else None
+
+    # Price level: current is first slot (cheapest = 20.0, highest ~28.52)
+    price_level = None
+    price_percentage = None
+    if current_slot and forecast:
+        prices = sorted(s["retail_total_ct_kwh_all"] for s in forecast)
+        lowest, highest = prices[0], prices[-1]
+        current_price = current_slot["retail_total_ct_kwh_all"]
+        if highest != lowest:
+            pct = (current_price - lowest) / (highest - lowest) * 100
+            if pct <= 20:
+                price_level = "very_cheap"
+            elif pct <= 40:
+                price_level = "cheap"
+            elif pct <= 60:
+                price_level = "normal"
+            elif pct <= 80:
+                price_level = "expensive"
+            else:
+                price_level = "very_expensive"
+        else:
+            price_level = "normal"
+        if highest > 0:
+            price_percentage = current_price / highest * 100
+
     mock = MagicMock()
     mock.plz = "66386"
     mock.country = "DE"
@@ -39,7 +67,11 @@ def make_coordinator_mock(forecast_overrides: list[dict] | None = None) -> Magic
         "currency": "EUR",
         "unit": "ct/kWh",
         "forecast": forecast,
-        "current_slot": forecast[0] if forecast else None,
+        "current_slot": current_slot,
+        "next_slot": next_slot,
+        "price_level": price_level,
+        "price_percentage": price_percentage,
+        "last_updated": NOW,
         "summary": {
             "slots": len(forecast),
             "retail_avg_ct_kwh": 24.0,
@@ -91,6 +123,57 @@ class TestCurrentPriceSensor:
         coord = make_coordinator_mock()
         coord.data["current_slot"] = None
         sensor = make_sensor("current_price", coord)
+        assert sensor.native_value is None
+
+
+class TestNextPriceSensor:
+    def test_returns_next_slot_retail(self) -> None:
+        sensor = make_sensor("next_price")
+        assert sensor.native_value == 20.12
+
+    def test_no_next_slot_returns_none(self) -> None:
+        coord = make_coordinator_mock()
+        coord.data["next_slot"] = None
+        sensor = make_sensor("next_price", coord)
+        assert sensor.native_value is None
+
+
+class TestPriceLevelSensor:
+    def test_returns_level(self) -> None:
+        sensor = make_sensor("price_level")
+        assert sensor.native_value in (
+            "very_cheap", "cheap", "normal", "expensive", "very_expensive"
+        )
+
+    def test_no_data_returns_none(self) -> None:
+        coord = make_coordinator_mock()
+        coord.data = None
+        sensor = make_sensor("price_level", coord)
+        assert sensor.native_value is None
+
+
+class TestPricePercentageSensor:
+    def test_returns_percentage(self) -> None:
+        sensor = make_sensor("price_percentage")
+        assert sensor.native_value is not None
+        assert 0 <= sensor.native_value <= 100
+
+    def test_no_data_returns_none(self) -> None:
+        coord = make_coordinator_mock()
+        coord.data = None
+        sensor = make_sensor("price_percentage", coord)
+        assert sensor.native_value is None
+
+
+class TestLastUpdatedSensor:
+    def test_returns_timestamp(self) -> None:
+        sensor = make_sensor("last_updated")
+        assert sensor.native_value == NOW
+
+    def test_no_data_returns_none(self) -> None:
+        coord = make_coordinator_mock()
+        coord.data = None
+        sensor = make_sensor("last_updated", coord)
         assert sensor.native_value is None
 
 
@@ -156,6 +239,7 @@ class TestAttributes:
         assert attrs is not None
         assert "hourly_prices" in attrs
         assert "cheapest_slots" in attrs
+        assert "price_level" in attrs
 
     def test_non_main_sensor_has_no_attributes(self) -> None:
         for key in SENSOR_DESCRIPTIONS:
@@ -183,6 +267,7 @@ class TestUnitOfMeasurement:
             "lowest_price",
             "highest_price",
             "average_price",
+            "next_price",
         ):
             sensor = make_sensor(key)
             assert sensor.native_unit_of_measurement == "ct/kWh"
@@ -191,15 +276,53 @@ class TestUnitOfMeasurement:
         sensor = make_sensor("price_source")
         assert sensor.native_unit_of_measurement is None
 
+    def test_price_level_no_unit(self) -> None:
+        sensor = make_sensor("price_level")
+        assert sensor.native_unit_of_measurement is None
+
     def test_forecast_slots_unit(self) -> None:
         sensor = make_sensor("forecast_slots")
         assert sensor.native_unit_of_measurement == "h"
+
+    def test_price_percentage_unit(self) -> None:
+        sensor = make_sensor("price_percentage")
+        assert sensor.native_unit_of_measurement == "%"
 
     def test_timestamp_sensors_no_unit(self) -> None:
         for key in (
             "lowest_price_time",
             "highest_price_time",
             "lowest_next_8h_price_time",
+            "last_updated",
         ):
             sensor = make_sensor(key)
             assert sensor.native_unit_of_measurement is None
+
+
+class TestEntityCategories:
+    def test_diagnostic_sensors_have_category(self) -> None:
+        from homeassistant.helpers.entity import EntityCategory
+        diagnostic_keys = {
+            "current_forecast_price",
+            "current_day_ahead_price",
+            "price_source",
+            "forecast_slots",
+            "last_updated",
+        }
+        for key in diagnostic_keys:
+            desc = SENSOR_DESCRIPTIONS[key]
+            assert desc.entity_category == EntityCategory.DIAGNOSTIC, (
+                f"{key} should have DIAGNOSTIC entity category"
+            )
+
+    def test_primary_sensors_have_no_category(self) -> None:
+        primary_keys = {
+            "current_price", "next_price", "lowest_price", "highest_price",
+            "average_price", "price_level", "lowest_price_time",
+            "highest_price_time", "lowest_next_8h_price_time", "price_percentage",
+        }
+        for key in primary_keys:
+            desc = SENSOR_DESCRIPTIONS[key]
+            assert desc.entity_category is None, (
+                f"{key} should have no entity category"
+            )

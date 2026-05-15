@@ -48,6 +48,11 @@ class TestProcessApiData:
         assert result["current_slot"] is not None
         assert result["current_slot"]["timestamp"] == NOW
 
+    def test_next_slot_found(self, sample_api_response: dict) -> None:
+        result = process_api_data(sample_api_response)
+        assert result["next_slot"] is not None
+        assert result["next_slot"]["timestamp"] == NOW + timedelta(hours=1)
+
     def test_cheapest_slots_sorted(self, sample_api_response: dict) -> None:
         result = process_api_data(sample_api_response)
         prices = [s["retail_total_ct_kwh_all"] for s in result["cheapest_slots"]]
@@ -85,6 +90,21 @@ class TestProcessApiData:
         bad_data = {"api_version": "v1"}
         with pytest.raises(KeyError):
             process_api_data(bad_data)
+
+    def test_price_level_computed(self, sample_api_response: dict) -> None:
+        result = process_api_data(sample_api_response)
+        assert result["price_level"] in (
+            "very_cheap", "cheap", "normal", "expensive", "very_expensive"
+        )
+
+    def test_price_percentage_computed(self, sample_api_response: dict) -> None:
+        result = process_api_data(sample_api_response)
+        assert result["price_percentage"] is not None
+        assert 0 <= result["price_percentage"] <= 100
+
+    def test_last_updated_computed(self, sample_api_response: dict) -> None:
+        result = process_api_data(sample_api_response)
+        assert result["last_updated"] == NOW
 
 
 class TestFindCurrentSlot:
@@ -135,6 +155,96 @@ class TestFindCurrentSlot:
         assert result is None
 
 
+class TestFindNextSlot:
+    """Tests for _find_next_slot static method."""
+
+    def test_exact_next_hour(self) -> None:
+        forecast = [
+            {"timestamp": NOW, "retail_total_ct_kwh_all": 25.0, "price_source": "day_ahead"},
+            {"timestamp": NOW + timedelta(hours=1), "retail_total_ct_kwh_all": 26.0, "price_source": "day_ahead"},
+        ]
+        result = StroomprijsprognoseCoordinator._find_next_slot(forecast, NOW)
+        assert result is not None
+        assert result["retail_total_ct_kwh_all"] == 26.0
+
+    def test_fallback_first_after_now(self) -> None:
+        forecast = [
+            {"timestamp": NOW + timedelta(hours=2), "retail_total_ct_kwh_all": 28.0, "price_source": "forecast"},
+        ]
+        result = StroomprijsprognoseCoordinator._find_next_slot(forecast, NOW)
+        assert result is not None
+        assert result["retail_total_ct_kwh_all"] == 28.0
+
+    def test_empty_forecast_returns_none(self) -> None:
+        result = StroomprijsprognoseCoordinator._find_next_slot([], NOW)
+        assert result is None
+
+
+class TestPriceLevel:
+    """Tests for _compute_price_level static method."""
+
+    def test_lowest_price_is_very_cheap(self) -> None:
+        forecast = [
+            {"timestamp": NOW, "retail_total_ct_kwh_all": 10.0, "price_source": "day_ahead"},
+            {"timestamp": NOW + timedelta(hours=1), "retail_total_ct_kwh_all": 50.0, "price_source": "day_ahead"},
+        ]
+        current = {"retail_total_ct_kwh_all": 10.0}
+        result = StroomprijsprognoseCoordinator._compute_price_level(forecast, current)
+        assert result == "very_cheap"
+
+    def test_highest_price_is_very_expensive(self) -> None:
+        forecast = [
+            {"timestamp": NOW, "retail_total_ct_kwh_all": 10.0, "price_source": "day_ahead"},
+            {"timestamp": NOW + timedelta(hours=1), "retail_total_ct_kwh_all": 50.0, "price_source": "day_ahead"},
+        ]
+        current = {"retail_total_ct_kwh_all": 50.0}
+        result = StroomprijsprognoseCoordinator._compute_price_level(forecast, current)
+        assert result == "very_expensive"
+
+    def test_equal_prices_is_normal(self) -> None:
+        forecast = [
+            {"timestamp": NOW, "retail_total_ct_kwh_all": 25.0, "price_source": "day_ahead"},
+            {"timestamp": NOW + timedelta(hours=1), "retail_total_ct_kwh_all": 25.0, "price_source": "day_ahead"},
+        ]
+        current = {"retail_total_ct_kwh_all": 25.0}
+        result = StroomprijsprognoseCoordinator._compute_price_level(forecast, current)
+        assert result == "normal"
+
+    def test_no_current_slot_returns_none(self) -> None:
+        result = StroomprijsprognoseCoordinator._compute_price_level([], None)
+        assert result is None
+
+    def test_empty_forecast_returns_none(self) -> None:
+        result = StroomprijsprognoseCoordinator._compute_price_level([], {"retail_total_ct_kwh_all": 10.0})
+        assert result is None
+
+
+class TestPricePercentage:
+    """Tests for _compute_price_percentage static method."""
+
+    def test_max_price_is_100(self) -> None:
+        forecast = [
+            {"timestamp": NOW, "retail_total_ct_kwh_all": 10.0, "price_source": "day_ahead"},
+            {"timestamp": NOW + timedelta(hours=1), "retail_total_ct_kwh_all": 50.0, "price_source": "day_ahead"},
+        ]
+        current = {"retail_total_ct_kwh_all": 50.0}
+        result = StroomprijsprognoseCoordinator._compute_price_percentage(forecast, current)
+        assert result == 100.0
+
+    def test_half_price_is_50(self) -> None:
+        forecast = [
+            {"timestamp": NOW, "retail_total_ct_kwh_all": 0.0, "price_source": "day_ahead"},
+            {"timestamp": NOW + timedelta(hours=1), "retail_total_ct_kwh_all": 100.0, "price_source": "day_ahead"},
+        ]
+        current = {"retail_total_ct_kwh_all": 50.0}
+        result = StroomprijsprognoseCoordinator._compute_price_percentage(forecast, current)
+        assert result == 50.0
+
+    def test_no_current_slot_returns_none(self) -> None:
+        result = StroomprijsprognoseCoordinator._compute_price_percentage([], None)
+        assert result is None
+
+
 class TestNeedsApiFetch:
     """Tests for _needs_api_fetch cache decision logic."""
 
@@ -165,7 +275,6 @@ class TestNeedsApiFetch:
         coord._last_api_fetch = NOW
         coord._last_fetch_hour = NOW.hour
         coord._force_refresh = False
-        # 10 minutes later, same hour, interval not elapsed
         later = NOW + timedelta(minutes=10)
         assert coord._needs_api_fetch(later) is False
 
@@ -175,27 +284,24 @@ class TestNeedsApiFetch:
         coord._last_api_fetch = NOW
         coord._last_fetch_hour = NOW.hour
         coord._force_refresh = False
-        # 20 minutes later, same hour, but interval (15 min) elapsed
         later = NOW + timedelta(minutes=20)
         assert coord._needs_api_fetch(later) is True
 
     def test_needs_fetch_after_hour_boundary_with_grace(self) -> None:
         coord = self._make_coordinator()
         coord._cached_processed = {"forecast": []}
-        coord._last_api_fetch = NOW  # 12:00
+        coord._last_api_fetch = NOW
         coord._last_fetch_hour = 12
         coord._force_refresh = False
-        # 13:06 — hour boundary crossed, past grace period (300s = 5min)
         later = NOW + timedelta(hours=1, minutes=6)
         assert coord._needs_api_fetch(later) is True
 
     def test_no_fetch_within_grace_after_hour_boundary(self) -> None:
         coord = self._make_coordinator()
         coord._cached_processed = {"forecast": []}
-        coord._last_api_fetch = NOW  # 12:00
+        coord._last_api_fetch = NOW
         coord._last_fetch_hour = 12
         coord._force_refresh = False
-        # 13:03 — hour boundary crossed, but within grace period (300s)
         later = NOW + timedelta(hours=1, minutes=3)
         assert coord._needs_api_fetch(later) is False
 
@@ -208,10 +314,18 @@ class TestRecomputeDerived:
         result_12 = coord._process_api_data(sample_api_response, NOW)
         assert result_12["current_slot"]["timestamp"] == NOW
 
-        # One hour later, current_slot should shift
         later = NOW + timedelta(hours=1)
         result_13 = coord._recompute_derived(result_12, later)
         assert result_13["current_slot"]["timestamp"] == later
+
+    def test_next_slot_updates_on_hour_boundary(self, sample_api_response: dict) -> None:
+        coord = StroomprijsprognoseCoordinator.__new__(StroomprijsprognoseCoordinator)
+        result_12 = coord._process_api_data(sample_api_response, NOW)
+        assert result_12["next_slot"]["timestamp"] == NOW + timedelta(hours=1)
+
+        later = NOW + timedelta(hours=1)
+        result_13 = coord._recompute_derived(result_12, later)
+        assert result_13["next_slot"]["timestamp"] == NOW + timedelta(hours=2)
 
     def test_forecast_list_preserved(self, sample_api_response: dict) -> None:
         coord = StroomprijsprognoseCoordinator.__new__(StroomprijsprognoseCoordinator)
@@ -231,7 +345,6 @@ class TestRecomputeDerived:
         result = coord._process_api_data(sample_api_response, NOW)
         later = NOW + timedelta(hours=4)
         recomputed = coord._recompute_derived(result, later)
-        # After shifting 4 hours forward, the 8h window is different
         cutoff = later + timedelta(hours=8)
         for s in recomputed["lowest_next_8h"]:
             assert s["timestamp"] >= later
@@ -242,3 +355,18 @@ class TestRecomputeDerived:
         coord._force_refresh = False
         coord.request_force_refresh()
         assert coord._force_refresh is True
+
+    def test_price_level_recomputed(self, sample_api_response: dict) -> None:
+        coord = StroomprijsprognoseCoordinator.__new__(StroomprijsprognoseCoordinator)
+        result = coord._process_api_data(sample_api_response, NOW)
+        assert "price_level" in result
+        assert result["price_level"] in (
+            "very_cheap", "cheap", "normal", "expensive", "very_expensive"
+        )
+
+    def test_last_updated_recomputed(self, sample_api_response: dict) -> None:
+        coord = StroomprijsprognoseCoordinator.__new__(StroomprijsprognoseCoordinator)
+        result = coord._process_api_data(sample_api_response, NOW)
+        later = NOW + timedelta(minutes=10)
+        recomputed = coord._recompute_derived(result, later)
+        assert recomputed["last_updated"] == later

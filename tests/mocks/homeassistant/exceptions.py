@@ -6,3 +6,7 @@ class HomeAssistantError(Exception):
 
 class ConfigEntryNotReady(HomeAssistantError):
     pass
+
+
+class ServiceValidationError(HomeAssistantError):
+    pass

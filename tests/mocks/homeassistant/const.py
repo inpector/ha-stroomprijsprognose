@@ -3,6 +3,9 @@
 from enum import StrEnum
 
 
+PERCENTAGE = "%"
+
+
 class Platform(StrEnum):
     SENSOR = "sensor"
 

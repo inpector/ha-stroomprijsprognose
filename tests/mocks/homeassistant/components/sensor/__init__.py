@@ -25,6 +25,7 @@ class SensorEntityDescription:
         native_unit_of_measurement: str | None = None,
         suggested_display_precision: int | None = None,
         entity_registry_enabled_default: bool = True,
+        entity_category: Any | None = None,
     ) -> None:
         self.key = key
         self.translation_key = translation_key
@@ -34,6 +35,7 @@ class SensorEntityDescription:
         self.native_unit_of_measurement = native_unit_of_measurement
         self.suggested_display_precision = suggested_display_precision
         self.entity_registry_enabled_default = entity_registry_enabled_default
+        self.entity_category = entity_category
 
 
 class SensorEntity(MagicMock):

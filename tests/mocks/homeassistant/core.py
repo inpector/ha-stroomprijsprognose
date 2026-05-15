@@ -12,6 +12,14 @@ class ServiceCall(MagicMock):
     pass
 
 
+# TypedDict-like alias for service response data
+type ServiceResponse = dict[str, Any]
+
+
+class SupportsService:
+    ONLY = "only"
+
+
 def callback(fn: Callable) -> Callable:
     """Decorator that marks a function as safe to call from the event loop."""
     return fn
