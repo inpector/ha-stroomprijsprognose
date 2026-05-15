@@ -9,17 +9,19 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN
+from .coordinator import StroomprijsprognoseCoordinator
 
 TO_REDACT: list[str] = []
 
+# Use the typed config entry from __init__
+StroomprijsprognoseConfigEntry = ConfigEntry[StroomprijsprognoseCoordinator]
+
 
 async def async_get_config_entry_diagnostics(
-    hass: HomeAssistant, entry: ConfigEntry
+    hass: HomeAssistant, entry: StroomprijsprognoseConfigEntry
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
-    coordinator = hass.data[DOMAIN].get(entry.entry_id)
-    if coordinator is None:
-        return {"error": "no coordinator found"}
+    coordinator = entry.runtime_data
 
     return {
         "config_entry": {

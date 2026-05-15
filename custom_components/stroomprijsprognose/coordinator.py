@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 import logging
 from typing import Any
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -16,31 +17,39 @@ from .const import API_CACHE_GRACE_SECONDS, API_TIMEOUT_SECONDS, BASE_URL, DOMAI
 
 _LOGGER = logging.getLogger(__name__)
 
+# Price level thresholds (percentile position within forecast range)
+_PRICE_LEVEL_VERY_CHEAP = 20
+_PRICE_LEVEL_CHEAP = 40
+_PRICE_LEVEL_NORMAL = 60
+_PRICE_LEVEL_EXPENSIVE = 80
+
 
 class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
     """Coordinator to fetch electricity price forecasts.
 
     Uses smart caching: full API calls happen at the configured update interval
     or when an hour boundary is crossed. Between full fetches, derived values
-    (current_slot, lowest_next_8h) are recomputed from cached forecast data
-    without hitting the API.
+    (current_slot, next_slot, lowest_next_8h, price_level, price_percentage)
+    are recomputed from cached forecast data without hitting the API.
     """
 
-    config_entry: Any  # ConfigEntry
+    config_entry: ConfigEntry
 
     def __init__(
         self,
         hass: HomeAssistant,
-        update_interval: int,
+        entry: ConfigEntry,
         plz: str,
         country: str,
         hours: int,
+        update_interval: int,
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
+            config_entry=entry,
             update_interval=timedelta(minutes=update_interval),
         )
         self.plz = plz
@@ -133,6 +142,21 @@ class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
 
         return data
 
+    async def test_api_connection(self, plz: str, country: str) -> bool:
+        """Test API connectivity with given credentials. Used by config flow validation."""
+        url = (
+            f"{BASE_URL}/api/v1/hourly-forecast"
+            f"?hours=1&country={country.lower()}&plz={plz}"
+        )
+        try:
+            async with asyncio.timeout(API_TIMEOUT_SECONDS):
+                response = await self._session.get(url)
+                response.raise_for_status()
+                data = await response.json()
+            return "series" in data
+        except Exception:
+            return False
+
     def _process_api_data(self, data: dict[str, Any], now: datetime) -> dict[str, Any]:
         """Process raw API data into structured format."""
         series: list[dict[str, Any]] = data["series"]
@@ -175,7 +199,8 @@ class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
     def _recompute_derived(self, cached: dict[str, Any], now: datetime) -> dict[str, Any]:
         """Recompute time-dependent derived values from cached forecast data.
 
-        Only current_slot and lowest_next_8h change between API calls
+        Only current_slot, next_slot, lowest_next_8h, price_level,
+        price_percentage, and last_updated change between API calls
         (they depend on the current time). Forecast list, summary,
         assumptions, and rankings remain stable.
         """
@@ -194,6 +219,7 @@ class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
     def _compute_derived(forecast: list[dict[str, Any]], now: datetime) -> dict[str, Any]:
         """Compute all derived values from forecast and current time."""
         current_slot = StroomprijsprognoseCoordinator._find_current_slot(forecast, now)
+        next_slot = StroomprijsprognoseCoordinator._find_next_slot(forecast, now)
 
         # Top-5 cheapest and most expensive slots (descending for most-expensive)
         sorted_by_price = sorted(forecast, key=lambda s: s["retail_total_ct_kwh_all"])
@@ -205,12 +231,99 @@ class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
         next_8h = [s for s in forecast if s["timestamp"] <= cutoff and s["timestamp"] >= now]
         lowest_next_8h = sorted(next_8h, key=lambda s: s["retail_total_ct_kwh_all"])[:3]
 
+        # Price level classification based on percentile within forecast range
+        price_level = StroomprijsprognoseCoordinator._compute_price_level(
+            forecast, current_slot
+        )
+
+        # Percentage of the highest price in the forecast
+        price_percentage = StroomprijsprognoseCoordinator._compute_price_percentage(
+            forecast, current_slot
+        )
+
         return {
             "current_slot": current_slot,
+            "next_slot": next_slot,
             "cheapest_slots": cheapest_5,
             "most_expensive_slots": most_expensive_5,
             "lowest_next_8h": lowest_next_8h,
+            "price_level": price_level,
+            "price_percentage": price_percentage,
+            "last_updated": now,
         }
+
+    @staticmethod
+    def _find_next_slot(
+        forecast: list[dict[str, Any]], now: datetime
+    ) -> dict[str, Any] | None:
+        """Find the forecast slot for the next hour after now."""
+        next_hour = (now.replace(minute=0, second=0, microsecond=0)
+                     + timedelta(hours=1))
+        for slot in forecast:
+            if slot["timestamp"] == next_hour:
+                return slot
+        # Fallback: first slot after now
+        for slot in forecast:
+            if slot["timestamp"] > now:
+                return slot
+        return None
+
+    @staticmethod
+    def _compute_price_level(
+        forecast: list[dict[str, Any]],
+        current_slot: dict[str, Any] | None,
+    ) -> str | None:
+        """Classify current price as a human-readable level.
+
+        Uses percentile position of the current price within the full
+        forecast range to assign one of five levels.
+        """
+        if not current_slot or not forecast:
+            return None
+
+        current_price = current_slot.get("retail_total_ct_kwh_all")
+        if current_price is None:
+            return None
+
+        prices = sorted(s["retail_total_ct_kwh_all"] for s in forecast)
+        lowest = prices[0]
+        highest = prices[-1]
+
+        # All prices identical — return normal
+        if highest == lowest:
+            return "normal"
+
+        # Percentile position: 0 = cheapest, 100 = most expensive
+        percentile = (current_price - lowest) / (highest - lowest) * 100
+
+        if percentile <= _PRICE_LEVEL_VERY_CHEAP:
+            return "very_cheap"
+        if percentile <= _PRICE_LEVEL_CHEAP:
+            return "cheap"
+        if percentile <= _PRICE_LEVEL_NORMAL:
+            return "normal"
+        if percentile <= _PRICE_LEVEL_EXPENSIVE:
+            return "expensive"
+        return "very_expensive"
+
+    @staticmethod
+    def _compute_price_percentage(
+        forecast: list[dict[str, Any]],
+        current_slot: dict[str, Any] | None,
+    ) -> float | None:
+        """Compute current price as percentage of the highest forecast price."""
+        if not current_slot or not forecast:
+            return None
+
+        current_price = current_slot.get("retail_total_ct_kwh_all")
+        if current_price is None:
+            return None
+
+        highest = max(s["retail_total_ct_kwh_all"] for s in forecast)
+        if highest == 0:
+            return None
+
+        return current_price / highest * 100
 
     @staticmethod
     def _find_current_slot(
