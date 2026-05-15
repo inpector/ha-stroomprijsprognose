@@ -2,7 +2,14 @@
 
 Complete reference for all Stroomprijsprognose sensors.
 
-## Sensor List
+## Sensor Categories
+
+| Category | Description |
+|----------|-------------|
+| **Primary** | Actionable sensors used in automations and dashboards |
+| **Diagnostic** | Metadata/debugging sensors (disabled by default, shown under diagnostics) |
+
+## Primary Sensors
 
 ### `sensor.stroomprijsprognose_current_price`
 
@@ -20,6 +27,7 @@ This is the main sensor. Its state is the total retail price for the current hou
 | `cheapest_slots` | list[dict] | Top 5 cheapest hours |
 | `most_expensive_slots` | list[dict] | Top 5 most expensive hours |
 | `lowest_next_8h` | list[dict] | Cheapest slots within next 8 hours |
+| `price_level` | str | Current price classification |
 | `summary` | dict | API summary (avg/min/max) |
 | `assumptions` | dict | Grid fees, supplier markup, VAT used |
 | `generated_at` | str | ISO timestamp of API generation |
@@ -34,6 +42,38 @@ Each slot dict in arrays:
   "retail_total_ct_kwh": 26.34,
   "price_source": "day_ahead"
 }
+```
+
+### `sensor.stroomprijsprognose_next_price`
+
+- **Unit:** ct/kWh
+- **State class:** measurement
+- **Default:** enabled
+- **Value:** `retail_effective_total_ct_kwh` for the next clock hour
+
+Use this for "should I wait?" automations — compare `current_price` vs `next_price` to decide whether to run an appliance now or in the next hour.
+
+### `sensor.stroomprijsprognose_price_level`
+
+- **Default:** enabled
+- **Values:** `very_cheap`, `cheap`, `normal`, `expensive`, `very_expensive
+- **Description:** Human-readable price classification based on the current price's percentile position within the forecast range.
+
+Percentile thresholds:
+| Level | Percentile |
+|-------|------------|
+| `very_cheap` | 0–20% |
+| `cheap` | 20–40% |
+| `normal` | 40–60% |
+| `expensive` | 60–80% |
+| `very_expensive` | 80–100% |
+
+Use this for simple automations without comparing raw numbers:
+```yaml
+trigger:
+  - platform: state
+    entity_id: sensor.stroomprijsprognose_price_level
+    to: "very_cheap"
 ```
 
 ### `sensor.stroomprijsprognose_lowest_price`
@@ -57,6 +97,15 @@ Each slot dict in arrays:
 - **Default:** enabled
 - **Value:** Arithmetic mean of `retail_total_ct_kwh` across all forecast slots
 
+### `sensor.stroomprijsprognose_price_percentage`
+
+- **Unit:** %
+- **State class:** measurement
+- **Default:** disabled
+- **Value:** Current price as percentage of the highest price in the forecast
+
+Useful for gauge cards and threshold automations. A value of 50 means the current price is halfway between the lowest and highest.
+
 ### `sensor.stroomprijsprognose_lowest_price_time`
 
 - **Device class:** timestamp
@@ -77,23 +126,27 @@ Each slot dict in arrays:
 
 Use this for "should I run the dishwasher now or wait until X?"
 
+## Diagnostic Sensors
+
+These sensors are disabled by default and appear under the Diagnostics section of the device page.
+
 ### `sensor.stroomprijsprognose_current_forecast_price`
 
 - **Unit:** ct/kWh
 - **State class:** measurement
-- **Default:** disabled
+- **Category:** diagnostic
 - **Value:** `retail_forecast_total_ct_kwh` for current hour (model-based forecast component only)
 
 ### `sensor.stroomprijsprognose_current_day_ahead_price`
 
 - **Unit:** ct/kWh
 - **State class:** measurement
-- **Default:** disabled
+- **Category:** diagnostic
 - **Value:** `retail_day_ahead_total_ct_kwh` for current hour. `unavailable` when no day-ahead data exists for this slot.
 
 ### `sensor.stroomprijsprognose_price_source`
 
-- **Default:** disabled
+- **Category:** diagnostic
 - **Values:** `day_ahead`, `forecast`, or `unavailable`
 - **Description:** Indicates whether the current hour's price comes from the EPEX day-ahead auction or from the model forecast.
 
@@ -101,8 +154,14 @@ Use this for "should I run the dishwasher now or wait until X?"
 
 - **Unit:** hours
 - **State class:** measurement
-- **Default:** disabled
+- **Category:** diagnostic
 - **Value:** Count of forecast slots that use model-based (non-day-ahead) pricing.
+
+### `sensor.stroomprijsprognose_last_updated`
+
+- **Device class:** timestamp
+- **Category:** diagnostic
+- **Value:** When the API data was last successfully fetched
 
 ## Price Sources
 
@@ -114,9 +173,19 @@ The API uses two price sources:
 
 The `price_source` sensor tells you which source the current hour uses.
 
-## Force Refresh Service
+## Smart Caching
 
-Call `stroomprijsprognose.force_refresh` to trigger an immediate data refresh:
+The integration uses smart caching to reduce API calls:
+
+- Full API fetch at the configured interval (default 15 min) or when an hour boundary is crossed (after a 5-minute grace period)
+- Between fetches, time-dependent values (`current_slot`, `next_slot`, `lowest_next_8h`, `price_level`, `price_percentage`) are recomputed locally from cached forecast data
+- This reduces API calls by ~50% while keeping sensors up-to-date
+
+## Services
+
+### Force Refresh
+
+Call `stroomprijsprognose.force_refresh` to bypass cache and trigger an immediate API fetch:
 
 ```yaml
 # Refresh all configured instances
@@ -128,4 +197,26 @@ data:
   entry_id: "abc123..."
 ```
 
-The optional `entry_id` parameter targets a single integration instance. Without it, all instances refresh.
+### Get Prices
+
+Call `stroomprijsprognose.get_prices` to return cached price data as a service response. Useful in templates and automations:
+
+```yaml
+service: stroomprijsprognose.get_prices
+response_variable: prices
+```
+
+Returns:
+```json
+{
+  "generated_at": "2026-05-08T12:00:00+00:00",
+  "currency": "EUR",
+  "unit": "ct/kWh",
+  "plz": "66386",
+  "country": "DE",
+  "prices": [
+    {"timestamp": "2026-05-08T12:00:00+00:00", "retail_total_ct_kwh": 26.0, "price_source": "day_ahead"},
+    ...
+  ]
+}
+```
