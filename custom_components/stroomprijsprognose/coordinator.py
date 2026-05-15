@@ -12,7 +12,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from .const import BASE_URL, CONF_COUNTRY, CONF_HOURS, CONF_PLZ, DOMAIN
+from .const import API_TIMEOUT_SECONDS, BASE_URL, CONF_COUNTRY, CONF_HOURS, CONF_PLZ, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(minutes=update_interval),
         )
         self.plz = plz
-        self.country = country.lower()
+        self.country = country.upper()
         self.hours = hours
         self._session = async_get_clientsession(hass)
 
@@ -46,11 +46,11 @@ class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
         """Fetch data from the API."""
         url = (
             f"{BASE_URL}/api/v1/hourly-forecast"
-            f"?hours={self.hours}&country={self.country}&plz={self.plz}"
+            f"?hours={self.hours}&country={self.country.lower()}&plz={self.plz}"
         )
 
         try:
-            async with asyncio.timeout(30):
+            async with asyncio.timeout(API_TIMEOUT_SECONDS):
                 response = await self._session.get(url)
                 response.raise_for_status()
                 data = await response.json()
@@ -71,9 +71,15 @@ class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
         assumptions: dict[str, Any] = data.get("assumptions", {})
         now = dt_util.utcnow()
 
+        # Map API fields to internal keys; retail_total_ct_kwh_all is the
+        # all-inclusive retail price (grid fees + taxes + markup) used for
+        # cheapest/most-expensive ranking and sensor display.
         forecast: list[dict[str, Any]] = []
         for slot in series:
-            ts = datetime.fromisoformat(slot["timestamp"].replace("Z", "+00:00"))
+            ts_raw = slot["timestamp"]
+            ts = dt_util.parse_datetime(ts_raw) or datetime.fromisoformat(
+                ts_raw.replace("Z", "+00:00")
+            )
             forecast.append({
                 "timestamp": ts,
                 "price_ct_kwh": slot["effective_ct_kwh"],
@@ -91,7 +97,7 @@ class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
         # Find current hour slot
         current_slot = self._find_current_slot(forecast, now)
 
-        # Cheapest/most expensive slots by retail_total_ct_kwh
+        # Top-5 cheapest and most expensive slots (descending for most-expensive)
         sorted_by_price = sorted(forecast, key=lambda s: s["retail_total_ct_kwh_all"])
         cheapest_5 = sorted_by_price[:5]
         most_expensive_5 = sorted_by_price[-5:][::-1]
@@ -123,8 +129,9 @@ class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
         for slot in forecast:
             if slot["timestamp"] == current_hour:
                 return slot
-        # Fallback: closest slot within the hour
+        # Fallback: closest slot within 1 hour of now
         for slot in forecast:
             if abs((slot["timestamp"] - now).total_seconds()) < 3600:
                 return slot
+        # Last resort: use first available slot so sensors always have data
         return forecast[0] if forecast else None

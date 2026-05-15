@@ -23,4 +23,7 @@ MAX_HOURS: Final = 96
 MIN_UPDATE_INTERVAL: Final = 5
 MAX_UPDATE_INTERVAL: Final = 60
 
+API_TIMEOUT_SECONDS: Final = 30
+DEFAULT_UNIT: Final = "ct/kWh"
+
 COUNTRIES: Final = ["DE", "NL", "BE", "AT", "CH", "LU"]

@@ -18,7 +18,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN
+from .const import DEFAULT_UNIT, DOMAIN
 from .coordinator import StroomprijsprognoseCoordinator
 
 SENSOR_DESCRIPTIONS: dict[str, SensorEntityDescription] = {
@@ -167,17 +167,15 @@ class StroomprijsprognoseSensor(CoordinatorEntity, SensorEntity):
                 return None
             case "current_day_ahead_price":
                 if current_slot:
-                    val = current_slot.get("retail_day_ahead_total_ct_kwh")
-                    return round(val, 2) if val is not None else None
+                    return current_slot.get("retail_day_ahead_total_ct_kwh")
                 return None
             case "lowest_price":
-                return round(min(s["retail_total_ct_kwh_all"] for s in forecast), 2) if forecast else None
+                return min(s["retail_total_ct_kwh_all"] for s in forecast) if forecast else None
             case "highest_price":
-                return round(max(s["retail_total_ct_kwh_all"] for s in forecast), 2) if forecast else None
+                return max(s["retail_total_ct_kwh_all"] for s in forecast) if forecast else None
             case "average_price":
                 if forecast:
-                    avg = sum(s["retail_total_ct_kwh_all"] for s in forecast) / len(forecast)
-                    return round(avg, 2)
+                    return sum(s["retail_total_ct_kwh_all"] for s in forecast) / len(forecast)
                 return None
             case "lowest_price_time":
                 if forecast:
@@ -214,11 +212,15 @@ class StroomprijsprognoseSensor(CoordinatorEntity, SensorEntity):
             case _ if self.entity_description.device_class == SensorDeviceClass.TIMESTAMP:
                 return None
             case _:
-                return self.coordinator.data.get("unit", "ct/kWh") if self.coordinator.data else "ct/kWh"
+                return self.coordinator.data.get("unit", DEFAULT_UNIT) if self.coordinator.data else DEFAULT_UNIT
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Return additional attributes (on main current_price sensor only)."""
+        """Return additional attributes on the current_price sensor only.
+
+        Consolidating all detail data on one sensor avoids bloating HA's
+        state machine with duplicate attributes across 10+ sensor entities.
+        """
         data = self.coordinator.data
         if not data or self._sensor_key != "current_price":
             return None
@@ -227,7 +229,7 @@ class StroomprijsprognoseSensor(CoordinatorEntity, SensorEntity):
         attrs: dict[str, Any] = {
             "generated_at": data.get("generated_at"),
             "plz": self.coordinator.plz,
-            "country": self.coordinator.country.upper(),
+            "country": self.coordinator.country,
             "currency": data.get("currency", "EUR"),
             "unit": data.get("unit", "ct/kWh"),
             "summary": dict(data.get("summary", {})),

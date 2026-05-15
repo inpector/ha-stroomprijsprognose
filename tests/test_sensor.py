@@ -33,7 +33,7 @@ def make_coordinator_mock(forecast_overrides: list[dict] | None = None) -> Magic
 
     mock = MagicMock()
     mock.plz = "66386"
-    mock.country = "de"
+    mock.country = "DE"
     mock.data = {
         "generated_at": NOW.isoformat(),
         "currency": "EUR",

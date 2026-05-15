@@ -113,3 +113,19 @@ The API uses two price sources:
 2. **Forecast (`forecast`):** Model-predicted prices for hours beyond the day-ahead horizon. Less precise, but directionally useful.
 
 The `price_source` sensor tells you which source the current hour uses.
+
+## Force Refresh Service
+
+Call `stroomprijsprognose.force_refresh` to trigger an immediate data refresh:
+
+```yaml
+# Refresh all configured instances
+service: stroomprijsprognose.force_refresh
+
+# Refresh a specific instance
+service: stroomprijsprognose.force_refresh
+data:
+  entry_id: "abc123..."
+```
+
+The optional `entry_id` parameter targets a single integration instance. Without it, all instances refresh.

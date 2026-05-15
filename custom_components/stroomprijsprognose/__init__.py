@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import voluptuous as vol
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
@@ -28,7 +30,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Stroomprijsprognose from a config entry."""
     plz: str = entry.data[CONF_PLZ]
     country: str = entry.data[CONF_COUNTRY]
-    hours: int = entry.options.get(CONF_HOURS, entry.data.get(CONF_HOURS, 72))
+    hours: int = entry.options.get(CONF_HOURS, entry.data.get(CONF_HOURS, DEFAULT_HOURS))
     update_interval: int = entry.options.get(
         CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL
     )
@@ -52,7 +54,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     entry.async_on_unload(entry.add_update_listener(async_update_options))
 
-    # Register services
+    # Register service with schema to validate optional entry_id filter
+    FORCE_REFRESH_SCHEMA = vol.Schema({
+        vol.Optional("entry_id"): str,
+    })
+
     async def handle_force_refresh(call: ServiceCall) -> None:
         """Handle force_refresh service call."""
         entry_id = call.data.get("entry_id")
@@ -62,7 +68,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             for coord in hass.data.get(DOMAIN, {}).values():
                 await coord.async_request_refresh()
 
-    hass.services.async_register(DOMAIN, "force_refresh", handle_force_refresh)
+    hass.services.async_register(
+        DOMAIN, "force_refresh", handle_force_refresh, schema=FORCE_REFRESH_SCHEMA
+    )
 
     return True
 
