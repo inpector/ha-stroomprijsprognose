@@ -7,6 +7,7 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -111,30 +112,27 @@ class StroomprijsprognoseConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     @staticmethod
+    @callback
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
     ) -> StroomprijsprognoseOptionsFlow:
         """Get the options flow for this handler."""
-        return StroomprijsprognoseOptionsFlow(config_entry)
+        return StroomprijsprognoseOptionsFlow()
 
     async def _test_api(self, plz: str, country: str) -> bool:
         """Test if the API responds with valid data for given plz and country."""
-        from .coordinator import StroomprijsprognoseCoordinator
+        from .coordinator import test_api_connection
 
         session = async_get_clientsession(self.hass)
-        # Build a temporary coordinator just for connection testing
-        coord = StroomprijsprognoseCoordinator.__new__(StroomprijsprognoseCoordinator)
-        coord._session = session
-        return await coord.test_api_connection(plz, country)  # noqa: SLF001
+        return await test_api_connection(session, plz, country)
 
 
 class StroomprijsprognoseOptionsFlow(config_entries.OptionsFlow):
-    """Handle options for Stroomprijsprognose."""
+    """Handle options for Stroomprijsprognose.
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        super().__init__()
-        self.config_entry = config_entry
+    self.config_entry is set automatically by the base class (HA 2024.11+).
+    Do not pass config_entry to __init__.
+    """
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None

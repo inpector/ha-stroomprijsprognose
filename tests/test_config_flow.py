@@ -1,10 +1,15 @@
-"""Tests for config flow schema validation."""
+"""Tests for config flow schema validation and options flow structure."""
 
 from __future__ import annotations
 
 import pytest
 import voluptuous as vol
 
+from homeassistant.config_entries import ConfigEntry, OptionsFlow
+from stroomprijsprognose.config_flow import (
+    StroomprijsprognoseConfigFlow,
+    StroomprijsprognoseOptionsFlow,
+)
 from stroomprijsprognose.const import (
     CONF_COUNTRY,
     CONF_HOURS,
@@ -113,3 +118,41 @@ class TestOptionsFlowSchema:
         })
         with pytest.raises(vol.Invalid):
             schema({"update_interval": "1"})
+
+
+class TestOptionsFlowInit:
+    """Tests for OptionsFlow initialization (HA 2024.11+ pattern)."""
+
+    def test_options_flow_init_takes_no_args(self) -> None:
+        """OptionsFlow must not require config_entry in __init__.
+
+        HA 2024.11+ sets config_entry after init. Passing it manually
+        causes a 500 error in newer HA versions.
+        """
+        flow = StroomprijsprognoseOptionsFlow()
+        assert flow is not None
+
+    def test_options_flow_config_entry_set_by_framework(self) -> None:
+        """config_entry should be settable after construction (framework behavior)."""
+        flow = StroomprijsprognoseOptionsFlow()
+        entry = ConfigEntry()
+        entry.options = {"hours": 48, "update_interval": 10}
+        # Framework sets config_entry after init
+        flow.config_entry = entry
+        assert flow.config_entry is entry
+        assert flow.config_entry.options["hours"] == 48
+
+    def test_options_flow_access_before_set_raises(self) -> None:
+        """Accessing config_entry before framework sets it must raise."""
+        flow = StroomprijsprognoseOptionsFlow()
+        with pytest.raises(AttributeError):
+            _ = flow.config_entry
+
+    def test_get_options_flow_returns_instance(self) -> None:
+        """async_get_options_flow should return an OptionsFlow instance
+        without requiring config_entry as constructor argument."""
+        result = StroomprijsprognoseConfigFlow.async_get_options_flow(
+            ConfigEntry()
+        )
+        assert isinstance(result, OptionsFlow)
+        assert isinstance(result, StroomprijsprognoseOptionsFlow)

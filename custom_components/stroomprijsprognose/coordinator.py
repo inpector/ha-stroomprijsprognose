@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 import logging
 from typing import Any
 
+from async_timeout import timeout as async_timeout
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -22,6 +24,23 @@ _PRICE_LEVEL_VERY_CHEAP = 20
 _PRICE_LEVEL_CHEAP = 40
 _PRICE_LEVEL_NORMAL = 60
 _PRICE_LEVEL_EXPENSIVE = 80
+
+
+async def test_api_connection(session: Any, plz: str, country: str) -> bool:
+    """Test API connectivity. Standalone function for use in config flow
+    without needing a full coordinator instance."""
+    url = (
+        f"{BASE_URL}/api/v1/hourly-forecast"
+        f"?hours=1&country={country.lower()}&plz={plz}"
+    )
+    try:
+        async with async_timeout(API_TIMEOUT_SECONDS):
+            response = await session.get(url)
+            response.raise_for_status()
+            data = await response.json()
+        return "series" in data
+    except Exception:
+        return False
 
 
 class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
@@ -128,7 +147,7 @@ class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
         )
 
         try:
-            async with asyncio.timeout(API_TIMEOUT_SECONDS):
+            async with async_timeout(API_TIMEOUT_SECONDS):
                 response = await self._session.get(url)
                 response.raise_for_status()
                 data = await response.json()
@@ -141,21 +160,6 @@ class StroomprijsprognoseCoordinator(DataUpdateCoordinator):
             raise UpdateFailed("Invalid API response: missing series or summary")
 
         return data
-
-    async def test_api_connection(self, plz: str, country: str) -> bool:
-        """Test API connectivity with given credentials. Used by config flow validation."""
-        url = (
-            f"{BASE_URL}/api/v1/hourly-forecast"
-            f"?hours=1&country={country.lower()}&plz={plz}"
-        )
-        try:
-            async with asyncio.timeout(API_TIMEOUT_SECONDS):
-                response = await self._session.get(url)
-                response.raise_for_status()
-                data = await response.json()
-            return "series" in data
-        except Exception:
-            return False
 
     def _process_api_data(self, data: dict[str, Any], now: datetime) -> dict[str, Any]:
         """Process raw API data into structured format."""
